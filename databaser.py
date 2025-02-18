@@ -1,78 +1,194 @@
+
 import os
-import json
 
-class TextDatabase:
+class database:  # (Код класса database из вашего примера)
+
     def __init__(self, db_name):
+        """Initializes the database with the given name. Creates the database directory if it doesn't exist."""
         self.db_name = db_name
-        self.db_file = f"{db_name}.txt"
-        self.data = self.load_data()
+        if not os.path.exists(self.db_name):
+            os.makedirs(self.db_name)
 
-    def load_data(self):
-        if os.path.exists(self.db_file):
+    def create_table(self, table_name, columns):
+        """Creates a new table with the specified name and columns.  Writes the schema to a file."""
+        table_path = os.path.join(self.db_name, table_name)
+        if not os.path.exists(table_path):
+            os.makedirs(table_path)
+            with open(os.path.join(table_path, "schema.txt"), "w") as f:
+                f.write(",".join(columns))
+        else:
+            print(f"Table '{table_name}' already exists.")
+
+    def insert(self, table_name, records):
+        """Inserts multiple records into the specified table.
+
+        Each record should be a dictionary where keys correspond to column names.
+        """
+        table_path = os.path.join(self.db_name, table_name)
+        if not os.path.exists(table_path):
+            raise Exception("Table does not exist.")
+
+        schema_path = os.path.join(table_path, "schema.txt")
+        with open(schema_path, "r") as f:
+            columns = f.read().strip().split(",")
+
+        # Determine the next available record ID by counting existing files
+        existing_files = [f for f in os.listdir(table_path) if f != "schema.txt"]
+        next_record_id = len(existing_files) + 1
+
+        for record in records:
+            record_id = str(next_record_id) + ".txt"
+            record_path = os.path.join(table_path, record_id)
+            with open(record_path, "w") as f:
+                f.write(",".join([str(record.get(col, "")) for col in columns]))
+            next_record_id += 1  # Increment for the next record
+
+
+    def select(self, table_name, condition=None):
+        """Selects records from the specified table based on the given condition.
+
+        If no condition is provided, all records are returned.
+        """
+        table_path = os.path.join(self.db_name, table_name)
+        if not os.path.exists(table_path):
+            raise Exception("Table does not exist.")
+
+        schema_path = os.path.join(table_path, "schema.txt")
+        with open(schema_path, "r") as f:
+            columns = f.read().strip().split(",")
+
+        results = []
+        for record_file in os.listdir(table_path):
+            if record_file == "schema.txt":
+                continue
+            record_path = os.path.join(table_path, record_file)
+            with open(record_path, "r") as f:
+                record_data = f.read().strip().split(",")
+                record = dict(zip(columns, record_data))
+
+                if not condition or condition(record):
+                    results.append(record)
+        return results
+
+
+    def update(self, table_name, updates, condition=None):
+        """Updates records in the specified table based on the given condition.
+
+        Only records that satisfy the condition will be updated.
+        """
+        table_path = os.path.join(self.db_name, table_name)
+        if not os.path.exists(table_path):
+            raise Exception("Table does not exist.")
+
+        schema_path = os.path.join(table_path, "schema.txt")
+        with open(schema_path, "r") as f:
+            columns = f.read().strip().split(",")
+
+        for record_file in os.listdir(table_path):
+            if record_file == "schema.txt":
+                continue
+
+            record_path = os.path.join(table_path, record_file)
+            with open(record_path, "r") as f:
+                record_data = f.read().strip().split(",")
+                record = dict(zip(columns, record_data))
+
+            if not condition or condition(record):
+                # Apply updates
+                for key, value in updates.items():
+                    if key in record:  # Only update columns that exist
+                        record[key] = value
+
+                # Write the updated record back to the file
+                with open(record_path, "w") as f:
+                    f.write(",".join([str(record.get(col, "")) for col in columns]))
+
+
+    def delete(self, table_name, condition=None):
+        """Deletes records from the specified table based on the given condition.
+
+        Only records that satisfy the condition will be deleted.
+        """
+        table_path = os.path.join(self.db_name, table_name)
+        if not os.path.exists(table_path):
+            raise Exception("Table does not exist.")
+
+        schema_path = os.path.join(table_path, "schema.txt")
+        with open(schema_path, "r") as f:
+            columns = f.read().strip().split(",")
+
+        for record_file in os.listdir(table_path):
+            if record_file == "schema.txt":
+                continue
+
+            record_path = os.path.join(table_path, record_file)
+            with open(record_path, "r") as f:
+                record_data = f.read().strip().split(",")
+                record = dict(zip(columns, record_data))
+
+            if not condition or condition(record):
+                os.remove(record_path)
+
+
+def iterate_database(db_name):
+    """
+    Проходит по всей базе данных и выводит информацию о каждой таблице и записи.
+
+    Args:
+        db_name: Имя базы данных (директории).
+    """
+
+    for table_name in os.listdir(db_name):
+        table_path = os.path.join(db_name, table_name)
+
+        # Убедимся, что это директория (таблица)
+        if not os.path.isdir(table_path):
+            continue
+
+        print(f"Таблица: {table_name}")
+
+        # Читаем схему
+        schema_path = os.path.join(table_path, "schema.txt")
+        try:
+            with open(schema_path, "r") as f:
+                columns = f.read().strip().split(",")
+                print(f"  Колонки: {columns}")
+        except FileNotFoundError:
+            print("  Файл схемы не найден.")
+            continue
+
+        # Проходим по записям в таблице
+        for record_file in os.listdir(table_path):
+            if record_file == "schema.txt":
+                continue
+
+            record_path = os.path.join(table_path, record_file)
+
             try:
-                with open(self.db_file, 'r') as f:
-                    content = f.read()
-                    if content:
-                        return json.loads(content)
-                    else:
-                        return {}
-            except json.JSONDecodeError:
-                print("Error: Database file is corrupted.  Starting with an empty database.")
-                return {}
-        else:
-            return {}
+                with open(record_path, "r") as f:
+                    record_data = f.read().strip().split(",")
+                    record = dict(zip(columns, record_data)) # Создаем словарь для удобства
 
-    def save_data(self):
-        with open(self.db_file, 'w') as f:
-            json.dump(self.data, f, indent=4)
+                    print(f"    Запись: {record_file}")
+                    for key, value in record.items():
+                        print(f"      {key}: {value}")
 
-    def create_table(self, table_name):
-        if table_name not in self.data:
-            self.data[table_name] = []
-            self.save_data()
-            return True
-        else:
-            return False
+            except FileNotFoundError:
+                print(f"    Файл записи {record_file} не найден.")
+            except Exception as e:
+                print(f"    Ошибка при чтении записи {record_file}: {e}")
 
-    def insert_data(self, table_name, *records):
-        if table_name in self.data:
-            self.data[table_name].extend(records)
-            self.save_data()
-            return True
-        else:
-            return False
 
-    def get_all_data(self, table_name):
-        if table_name in self.data:
-            return self.data[table_name]
-        else:
-            return None
+# Пример использования:
+if __name__ == '__main__':
+    # Создаем базу данных (если ее еще нет) и несколько таблиц для теста
+    my_db = database("my_database")
+    my_db.create_table("users", ["id", "name", "age"])
+    my_db.create_table("products", ["product_id", "product_name", "price"])
 
-    def query_data(self, table_name, condition):
-        if table_name in self.data:
-            results = [record for record in self.data[table_name] if condition(record)]
-            return results
-        else:
-            return None
+    # Добавляем данные
+    my_db.insert("users", [{"id": 1, "name": "Alice", "age": 30}, {"id": 2, "name": "Bob", "age": 25}])
+    my_db.insert("products", [{"product_id": "A123", "product_name": "Laptop", "price": 1200}, {"product_id": "B456", "product_name": "Mouse", "price": 25}])
 
-    def update_data(self, table_name, condition, update_func):
-        if table_name in self.data:
-            updated_count = 0
-            for i, record in enumerate(self.data[table_name]):
-                if condition(record):
-                    self.data[table_name][i] = update_func(record)
-                    updated_count += 1
-            self.save_data()
-            return updated_count
-        else:
-            return 0
-
-    def delete_data(self, table_name, condition):
-        if table_name in self.data:
-            original_length = len(self.data[table_name])
-            self.data[table_name] = [record for record in self.data[table_name] if not condition(record)]
-            deleted_count = original_length - len(self.data[table_name])
-            self.save_data()
-            return deleted_count
-        else:
-            return 0
+    # Теперь проходим по всей базе данных
+    iterate_database("my_database")
