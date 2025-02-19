@@ -1,5 +1,8 @@
 
 import os
+import uuid
+import random
+
 
 class database:  # (Код класса database из вашего примера)
 
@@ -177,18 +180,3 @@ def iterate_database(db_name):
                 print(f"    Файл записи {record_file} не найден.")
             except Exception as e:
                 print(f"    Ошибка при чтении записи {record_file}: {e}")
-
-
-# Пример использования:
-if __name__ == '__main__':
-    # Создаем базу данных (если ее еще нет) и несколько таблиц для теста
-    my_db = database("my_database")
-    my_db.create_table("users", ["id", "name", "age"])
-    my_db.create_table("products", ["product_id", "product_name", "price"])
-
-    # Добавляем данные
-    my_db.insert("users", [{"id": 1, "name": "Alice", "age": 30}, {"id": 2, "name": "Bob", "age": 25}])
-    my_db.insert("products", [{"product_id": "A123", "product_name": "Laptop", "price": 1200}, {"product_id": "B456", "product_name": "Mouse", "price": 25}])
-
-    # Теперь проходим по всей базе данных
-    iterate_database("my_database")
