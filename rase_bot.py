@@ -6,9 +6,6 @@ import hashlib
 from databaser import database
 import os
 from rich import print
-from rich.console import Console
-from rich.progress import Progress
-
 
 developer_id = 0
 admins_id = []
@@ -86,24 +83,43 @@ def cat_commands(cat_command):
     wait_commads('help')
 
 
+def balance(nickname, balance):
+    print(f'{nickname}, your balance:\t{balance}')
+
+
+def clear():
+    print('Clear.. ')
+    time.sleep(3)
+    os.system('cls')
+
+
+def buy_bisness():
+    
+
+
 def wait_commads(previous_action, command=None):
-    print('----------------------------------------------')
-    print('----------------------------------------------')
+    print('-------------------------------------------------------------')
     ident = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(5,-1,-1)])
     results = db.select(table_name, condition=lambda record: record.get("ident") == ident)
     nickname = results[0].get("nickname")
+    balance = results[0].get("balance")
     if command is None:
         command = input('--> ')
-
     if command in ('c', 'clear'):
-        os.system('cls')
+        clear()
+        wait_commads('clear')
     if command in ('help', 'h'):
         help(nickname)
+        wait_commads('help')
     if command in('return', 'r'):
         if previous_action in globals():
             func = globals()[previous_action]
             func(nickname)
     if command in ('b', 'balance'):
-        print(f'{nickname}, your balance:\n\t')
+        balance(nickname, balance)
+        wait_commads('balance')
+    if command in ('buy bisness', 'bb'):
+        buy_bisness()
+    
 
 start()
